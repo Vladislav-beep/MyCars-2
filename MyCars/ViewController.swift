@@ -19,8 +19,20 @@ class ViewController: UIViewController {
     }()
     
     var context: NSManagedObjectContext!
+    var car: Car!
     
-    @IBOutlet weak var segmentedControl: UISegmentedControl!
+    @IBOutlet weak var segmentedControl: UISegmentedControl! {
+        didSet {
+            updateSegmentedControll()
+            segmentedControl.selectedSegmentTintColor = .white
+            let whiteTitleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.white]
+            let blackTitleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.black]
+            
+            UISegmentedControl.appearance().setTitleTextAttributes(whiteTitleTextAttributes, for: .normal)
+            UISegmentedControl.appearance().setTitleTextAttributes(blackTitleTextAttributes, for: .selected)
+        }
+    }
+    
     @IBOutlet weak var markLabel: UILabel!
     @IBOutlet weak var modelLabel: UILabel!
     @IBOutlet weak var carImageView: UIImageView!
@@ -38,13 +50,16 @@ class ViewController: UIViewController {
         
         do {
             records = try context.count(for: fetchRequest)
+            print("Is Data there already?")
         } catch let error as NSError {
             print(error.localizedDescription)
         }
+        
         guard records == 0 else { return }
         
+        
         guard let pathToFile = Bundle.main.path(forResource: "data", ofType: "plist"),
-              let dataArray = NSArray(contentsOfFile: pathToFile) else { return }
+            let dataArray = NSArray(contentsOfFile: pathToFile) else { return }
         
         for dictionary in dataArray {
             let entity = NSEntityDescription.entity(forEntityName: "Car", in: context)
@@ -60,10 +75,10 @@ class ViewController: UIViewController {
             
             let imageName = carDictionary["imageName"] as? String
             let image = UIImage(named: imageName!)
-            let imageData = image?.pngData()
+            let imageData = image!.pngData()
             car.imageData = imageData
             
-            if let colorDictionary = carDictionary["tintColor"] as? [String: Float] {
+            if let colorDictionary = carDictionary["tintColor"] as? [String : Float] {
                 car.tintColor = getColor(colorDictionary: colorDictionary)
             }
         }
@@ -85,38 +100,80 @@ class ViewController: UIViewController {
         numberOfTripsLabel.text = "Number of trips: \(car.timesDriven)"
         
         lastTimeStartedLabel.text = "Last time started: \(dateFormatter.string(from: car.lastStarted!))"
-        segmentedControl.tintColor = car.tintColor  as? UIColor
+        segmentedControl.backgroundColor = car.tintColor as? UIColor
     }
     
     @IBAction func segmentedCtrlPressed(_ sender: UISegmentedControl) {
-        
+        updateSegmentedControll()
     }
     
     @IBAction func startEnginePressed(_ sender: UIButton) {
-        
-    }
-    
-    @IBAction func rateItPressed(_ sender: UIButton) {
-        
-    }
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        getDataFromFile()
-        
-        let fetchRequest: NSFetchRequest<Car> = Car.fetchRequest()
-        let mark = segmentedControl.titleForSegment(at: 0)
-        fetchRequest.predicate = NSPredicate(format: "mark != %@", mark!)
+        car.timesDriven += 1
+        car.lastStarted = Date()
         
         do {
-            let results = try context.fetch(fetchRequest)
-            let car = results.first
-            insertDataFrom(selectedCar: car!)
+            try context.save()
+            insertDataFrom(selectedCar: car)
         } catch let error as NSError {
             print(error.localizedDescription)
         }
         
     }
     
+    @IBAction func rateItPressed(_ sender: UIButton) {
+        let alert = UIAlertController(title: "Rate it", message: "Rate this car", preferredStyle: .alert)
+        let rateAction = UIAlertAction(title: "Rate", style: .default) { action in
+            if let text = alert.textFields?.first?.text {
+                self.update(rating: (text as NSString).doubleValue)
+            }
+        }
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
+        
+        alert.addTextField { textField in
+            textField.keyboardType = .numberPad
+        }
+        alert.addAction(rateAction)
+        alert.addAction(cancelAction)
+        present(alert, animated: true)
+    }
+    
+    private func update(rating: Double) {
+        car.rating = rating
+        
+        do {
+            try context.save()
+            insertDataFrom(selectedCar: car)
+        } catch let error as NSError {
+            let alertController = UIAlertController(title: "Wrong value", message: "Wrong input", preferredStyle: .alert)
+            
+            let okAction = UIAlertAction(title: "OK", style: .default)
+            
+            alertController.addAction(okAction)
+            
+            present(alertController, animated: true, completion: nil)
+            print(error.localizedDescription)
+        }
+    }
+    
+    private func updateSegmentedControll() {
+        let fetchRequest: NSFetchRequest<Car> = Car.fetchRequest()
+        let mark = segmentedControl.titleForSegment(at: segmentedControl.selectedSegmentIndex)
+        fetchRequest.predicate = NSPredicate(format: "mark != %@", mark!)
+        
+        do {
+            let results = try context.fetch(fetchRequest)
+            car = results.first
+            insertDataFrom(selectedCar: car!)
+        } catch let error as NSError {
+            print(error.localizedDescription)
+        }
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        getDataFromFile()
+        
+        
+    
 }
-
+}
