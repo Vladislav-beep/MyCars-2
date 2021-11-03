@@ -59,7 +59,7 @@ class ViewController: UIViewController {
         
         
         guard let pathToFile = Bundle.main.path(forResource: "data", ofType: "plist"),
-            let dataArray = NSArray(contentsOfFile: pathToFile) else { return }
+              let dataArray = NSArray(contentsOfFile: pathToFile) else { return }
         
         for dictionary in dataArray {
             let entity = NSEntityDescription.entity(forEntityName: "Car", in: context)
@@ -174,6 +174,5 @@ class ViewController: UIViewController {
         getDataFromFile()
         
         
-    
-}
+    }
 }
